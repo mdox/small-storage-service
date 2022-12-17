@@ -3,7 +3,7 @@ const cors = require("cors");
 const express = require("express");
 const formidable = require("formidable");
 const { rm, mkdir, copyFile, rmdir, opendir } = require("fs/promises");
-const { access } = require("fs");
+const { access, constants } = require("fs");
 
 const port = 6060;
 
@@ -35,7 +35,7 @@ app.post("/:collection", function (req, res) {
         const url = `/${req.params.collection}/${file.hash}/${file.originalFilename}`;
 
         await mkdir(newDir, { recursive: true });
-        await copyFile(file.filepath, newFilepath);
+        await copyFile(file.filepath, newFilepath, constants.COPYFILE_EXCL);
 
         res.json({
           success: true,
@@ -44,7 +44,15 @@ app.post("/:collection", function (req, res) {
         });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ success: false });
+
+        const message = { success: false, code: "", reason: "" };
+
+        if (err.code === "EEXIST") {
+          message.code = "EEXIST";
+          message.reason = "File already exists.";
+        }
+
+        res.status(500).json(message);
       }
     }
   );
